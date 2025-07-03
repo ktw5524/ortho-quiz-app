@@ -30,45 +30,26 @@ for q in questions:
     if "part" in q and q["part"] in questions_by_part:
         questions_by_part[q["part"].strip()].append(q)
 
-# 세션 상태 초기화
-if "selected_part" not in st.session_state:
+# 상태 초기화 함수 (실제 재실행 없이 상태 초기화용)
+def reset_quiz_state():
     st.session_state.selected_part = None
-if "quiz_list" not in st.session_state:
     st.session_state.quiz_list = []
-if "quiz_index" not in st.session_state:
     st.session_state.quiz_index = 0
-if "score" not in st.session_state:
     st.session_state.score = 0
-if "total" not in st.session_state:
     st.session_state.total = 0
-if "wrong_answers" not in st.session_state:
     st.session_state.wrong_answers = []
-if "bookmarks" not in st.session_state:
     st.session_state.bookmarks = []
 
-# 함수 정의
-def start_quiz(selected):
-    st.session_state.selected_part = selected
-    st.session_state.quiz_list = random.sample(questions_by_part[selected], min(5, len(questions_by_part[selected])))
-    st.session_state.quiz_index = 0
-    st.session_state.score = 0
-    st.session_state.total = 0
-    st.session_state.wrong_answers = []
+# 세션 상태 초기화
+if "selected_part" not in st.session_state:
+    reset_quiz_state()
 
-def reset_quiz():
-    st.session_state.selected_part = None
-    st.session_state.quiz_list = []
-    st.session_state.quiz_index = 0
-    st.session_state.score = 0
-    st.session_state.total = 0
-    st.session_state.wrong_answers = []
-
-# 앱 제목 표시
+# 앱 제목 표시 (두 줄로 분리, 가운데 정렬, 이탤릭 굵게)
 st.markdown("""
-    <h1 style='text-align: center; font-style: italic; font-weight: 700; color: #2E86C1; margin-bottom:0;'>
+    <h1 style='text-align: center; font-style: italic; font-weight: 700; color: #2E86C1; margin-bottom: 0;'>
         정형외과 국가고시
     </h1>
-    <h1 style='text-align: center; font-style: italic; font-weight: 700; color: #2E86C1; margin-top:0;'>
+    <h1 style='text-align: center; font-style: italic; font-weight: 700; color: #2E86C1; margin-top: 0;'>
         문제은행
     </h1>
     <hr style='border: 1px solid #bbb;'>
@@ -81,7 +62,17 @@ with quiz_tab:
     if not st.session_state.selected_part:
         st.subheader("💡 퀴즈 파트를 선택하세요:")
         selected = st.selectbox("정형외과 10개 파트 중 하나를 고르세요", parts)
-        st.button("🚀 퀴즈 시작", on_click=start_quiz, args=(selected,))
+        if st.button("🚀 퀴즈 시작"):
+            st.session_state.selected_part = selected
+            st.session_state.quiz_list = random.sample(
+                questions_by_part[selected], 
+                min(5, len(questions_by_part[selected]))
+            )
+            st.session_state.quiz_index = 0
+            st.session_state.score = 0
+            st.session_state.total = 0
+            st.session_state.wrong_answers = []
+            st.experimental_rerun()  # 스트림릿 1.21 이상부터 사용 가능, 아니라면 아래 코드 참조
     else:
         part = st.session_state.selected_part
         quiz_list = st.session_state.quiz_list
@@ -89,26 +80,29 @@ with quiz_tab:
 
         if index >= len(quiz_list):
             st.success(f"🎉 {part} 퀴즈 완료! 점수: {st.session_state.score} / {st.session_state.total}")
-            st.button("🔙 처음으로", on_click=reset_quiz)
+            if st.button("🔙 처음으로"):
+                reset_quiz_state()
+                st.experimental_rerun()
         else:
             question = quiz_list[index]
             st.markdown(f"<h4 style='color:#1F618D'>문제 {index+1}:</h4><p style='font-size:18px'>{question['question']}</p>", unsafe_allow_html=True)
-            user_answer = st.radio("답을 선택하세요:", question["choices"], key=question['question'])
+            user_answer = st.radio("답을 선택하세요:", question["choices"], key=f"quiz_{index}")
 
-            if st.button("✅ 답안 제출"):
+            if st.button("✅ 답안 제출", key=f"submit_{index}"):
                 st.session_state.total += 1
                 if user_answer == question["answer"]:
                     st.success("🎉 정답입니다!")
                     st.session_state.score += 1
                 else:
                     st.error(f"❌ 오답입니다. 정답은: {question['answer']}")
+                    # 오답노트 저장은 버튼 따로 만들기로 설계 가능
                     st.session_state.wrong_answers.append({
                         "question": question["question"],
                         "your_answer": user_answer,
                         "correct_answer": question["answer"]
                     })
 
-                # GPT 해설 요약
+                # GPT 해설 요약 생성
                 prompt = f"""
                 다음은 정형외과 전문의 시험 문제입니다.
                 질문: {question['question']}
@@ -126,21 +120,23 @@ with quiz_tab:
                     explanation = response['choices'][0]['message']['content']
                     st.info(f"📘 요약 해설:\n\n{explanation}")
 
-                # 선택지별 해설
+                # 상세 보기별 해설 (있으면)
                 if "detailed_explanations" in question:
                     with st.expander("📖 보기별 해설 전체 보기"):
                         for choice in question["choices"]:
-                            explanation = question["detailed_explanations"].get(choice, "설명 없음")
-                            st.markdown(f"**📝 {choice}**: {explanation}")
+                            detail = question["detailed_explanations"].get(choice, "설명 없음")
+                            st.markdown(f"**📝 {choice}**: {detail}")
 
-                # 북마크 버튼
-                if st.button("🔖 이 문제 북마크하기"):
-                    if question not in st.session_state.bookmarks:
-                        st.session_state.bookmarks.append(question)
-                        st.success("⭐ 북마크에 추가되었습니다.")
+            # 북마크 버튼
+            if st.button("🔖 이 문제 북마크하기", key=f"bookmark_{index}"):
+                if question not in st.session_state.bookmarks:
+                    st.session_state.bookmarks.append(question)
+                    st.success("⭐ 북마크에 추가되었습니다.")
 
-                if st.button("➡️ 다음 문제"):
-                    st.session_state.quiz_index += 1
+            # 다음 문제 버튼
+            if st.button("➡️ 다음 문제", key=f"next_{index}"):
+                st.session_state.quiz_index += 1
+                st.experimental_rerun()
 
             st.markdown(f"""
                 <hr style='border: 0.5px solid #ddd;'>
@@ -161,7 +157,7 @@ with wrong_tab:
                 """, unsafe_allow_html=True)
                 if st.button(f"❌ 오답노트에서 삭제하기 #{i}", key=f"remove_wrong_{i}"):
                     st.session_state.wrong_answers.remove(wrong)
-
+                    st.experimental_rerun()
     else:
         st.info("❗ 아직 오답노트가 없습니다.")
 
@@ -178,7 +174,7 @@ with bookmark_tab:
                 """, unsafe_allow_html=True)
                 if st.button(f"❌ 북마크 해제하기 #{i}", key=f"remove_bookmark_{i}"):
                     st.session_state.bookmarks.remove(bm)
-
+                    st.experimental_rerun()
     else:
         st.info("⭐ 북마크된 문제가 없습니다.")
 
