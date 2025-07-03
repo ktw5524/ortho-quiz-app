@@ -161,3 +161,48 @@ else:
                         <b>정답:</b> {bm['answer']}
                     </div>
                 """, unsafe_allow_html=True)
+
+with wrong_tab:
+    if st.session_state.wrong_answers:
+        for i, wrong in enumerate(reversed(st.session_state.wrong_answers), 1):
+            with st.container():
+                st.markdown(f"""
+                    <div style='background-color:#FDEDEC; padding:10px; border-radius:8px; margin-bottom:10px;'>
+                        <b>{i}. 문제:</b> {wrong['question']}<br>
+                        <b>당신의 답:</b> {wrong['your_answer']}<br>
+                        <b>정답:</b> {wrong['correct_answer']}<br>
+                        <i>저장됨: 최근</i>
+                    </div>
+                """, unsafe_allow_html=True)
+                if st.button(f"❌ 오답노트에서 삭제하기 #{i}", key=f"remove_wrong_{i}"):
+                    st.session_state.wrong_answers.remove(wrong)
+                    st.experimental_rerun()
+    else:
+        st.info("❗ 아직 오답노트가 없습니다.")
+
+with bookmark_tab:
+    if st.session_state.bookmarks:
+        for i, bm in enumerate(reversed(st.session_state.bookmarks), 1):
+            with st.container():
+                st.markdown(f"""
+                    <div style='background-color:#FEF9E7; padding:10px; border-radius:8px; margin-bottom:10px;'>
+                        <b>{i}. 문제:</b> {bm['question']}<br>
+                        <b>정답:</b> {bm['answer']}<br>
+                        <i>저장됨: 최근</i>
+                    </div>
+                """, unsafe_allow_html=True)
+                if st.button(f"❌ 북마크 해제하기 #{i}", key=f"remove_bookmark_{i}"):
+                    st.session_state.bookmarks.remove(bm)
+                    st.experimental_rerun()
+    else:
+        st.info("⭐ 북마크된 문제가 없습니다.")
+
+# 📊 통계 요약 (하단 고정)
+st.markdown("""
+    <hr>
+    <div style='text-align:center'>
+        <b>총 푼 문제 수:</b> {total} &nbsp;&nbsp;
+        <b>정답 수:</b> {score} &nbsp;&nbsp;
+        <b>정답률:</b> {round(score/total*100, 1) if total else 0}%
+    </div>
+""".format(score=st.session_state.score, total=st.session_state.total), unsafe_allow_html=True)
