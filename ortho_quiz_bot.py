@@ -51,13 +51,15 @@ for q in questions:
         questions_by_part[q["part"].strip()].append(q)
 
 # ----------------- UI 타이틀 -----------------
-st.set_page_config(page_title="정형외과 국가고시 문제은행", layout="centered")
 st.markdown("""
-    <h1 style='text-align: center; font-style: italic; font-weight: 700; color: #2E86C1;'>
-        정형외과 국가고시 문제은행
+    <h1 style='text-align: center; font-style: italic; font-weight: 700; color: #2E86C1; margin-bottom:0;'>
+        정형외과 국가고시
+    </h1>
+    <h1 style='text-align: center; font-style: italic; font-weight: 700; color: #2E86C1; margin-top:0;'>
+        문제은행
     </h1>
     <hr style='border: 1px solid #bbb;'>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # ----------------- 메인 화면 or 퀴즈 화면 분기 -----------------
 if not st.session_state.selected_part:
